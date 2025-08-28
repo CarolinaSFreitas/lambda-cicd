@@ -35,7 +35,7 @@ jobs:
           echo "GIT_SHA=$GIT_SHA" >> $GITHUB_ENV
           echo "BUILT_AT=$BUILT_AT" >> $GITHUB_ENV
           rm -f build.zip
-          zip -r build.zip handler.py
+          zip -r build.zip handler.py index.html style.css app.js
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -47,7 +47,7 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   #OIDC
+      id-token: write   # OIDC
       contents: read
     steps:
       - uses: actions/checkout@v4

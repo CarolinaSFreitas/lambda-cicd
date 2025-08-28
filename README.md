@@ -42,11 +42,12 @@ Isso já confirmava que o deploy estava funcionando corretamente.
 
 Na sequência, foi criada uma **Lambda Function URL** para abrir no navegador.  
 
-### Prints incluídos
-1. **Versão JSON**: resposta básica via invoke.
-    [image-json](./imgs/image2.jpeg)
-2. **Versão HTML**: página simples servida pela Lambda através da URL pública.
-    [image2-json](./imgs/image.png)
+### Demonstração 
+1. **Versão JSON**: resposta básica via invoke.  
+   <img src="./imgs/image2.jpeg" alt="image-json" width="600"/>
+
+2. **Versão HTML**: página simples servida pela Lambda através da URL pública.  
+   <img src="./imgs/image.png" alt="image2-html" width="600"/>
 
 ---
 

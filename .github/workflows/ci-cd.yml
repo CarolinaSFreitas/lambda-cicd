@@ -1,0 +1,91 @@
+name: lambda-ci-cd
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: lambda-ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  LAMBDA_FUNCTION_NAME: ${{ vars.LAMBDA_FUNCTION_NAME }}
+  LAMBDA_ALIAS: prod
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Lint básico
+        run: python -m py_compile handler.py
+
+      - name: Package (zip inline)
+        run: |
+          export GIT_SHA=${GITHUB_SHA::7}
+          export BUILT_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "GIT_SHA=$GIT_SHA" >> $GITHUB_ENV
+          echo "BUILT_AT=$BUILT_AT" >> $GITHUB_ENV
+          rm -f build.zip
+          zip -r build.zip handler.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-zip
+          path: build.zip
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-zip
+          path: .
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
+
+      - name: Who am I? (sanity check)
+        run: aws sts get-caller-identity
+
+      - name: Deploy zip -> ${{ env.LAMBDA_FUNCTION_NAME }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --zip-file fileb://build.zip \
+            --publish >/tmp/update.json
+
+          VERSION=$(jq -r '.Version' /tmp/update.json)
+
+          set +e
+          aws lambda get-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$LAMBDA_ALIAS" >/dev/null 2>&1
+          EXISTS=$?
+          set -e
+          if [ $EXISTS -ne 0 ]; then
+            aws lambda create-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$LAMBDA_ALIAS" --function-version "$VERSION"
+          else
+            aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$LAMBDA_ALIAS" --function-version "$VERSION"
+          fi
+
+      - name: (Opcional) imprimir URL da Lambda
+        run: |
+          aws lambda get-function-url-config --function-name "$LAMBDA_FUNCTION_NAME" || echo "Sem URL configurada."

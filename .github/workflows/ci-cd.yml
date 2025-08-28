@@ -86,6 +86,10 @@ jobs:
             aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$LAMBDA_ALIAS" --function-version "$VERSION"
           fi
 
+
+      - name: Wait Lambda updated (waiter nativo)
+        run: aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION_NAME"
+
       - name: (Opcional) imprimir URL da Lambda
         run: |
           aws lambda get-function-url-config --function-name "$LAMBDA_FUNCTION_NAME" || echo "Sem URL configurada."

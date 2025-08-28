@@ -89,3 +89,15 @@ jobs:
       - name: (Opcional) imprimir URL da Lambda
         run: |
           aws lambda get-function-url-config --function-name "$LAMBDA_FUNCTION_NAME" || echo "Sem URL configurada."
+
+      - name: Invoke Lambda (test deploy)
+        run: |
+          aws lambda invoke \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --qualifier "$LAMBDA_ALIAS" \
+            --payload '{}' \
+            response.json
+          echo "Lambda response:"
+          cat response.json | jq .
+            echo ""
+

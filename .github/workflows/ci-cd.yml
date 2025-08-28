@@ -72,7 +72,8 @@ jobs:
           aws lambda update-function-code \
             --function-name "$LAMBDA_FUNCTION_NAME" \
             --zip-file fileb://build.zip \
-            --publish >/tmp/update.json
+            --publish >/tmp/update.json \
+            --handler handler.handler 
 
           VERSION=$(jq -r '.Version' /tmp/update.json)
 
@@ -90,7 +91,7 @@ jobs:
       - name: Wait Lambda updated (waiter nativo)
         run: aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION_NAME"
 
-      - name: (Opcional) imprimir URL da Lambda
+      - name: URL da Lambda
         run: |
           aws lambda get-function-url-config --function-name "$LAMBDA_FUNCTION_NAME" || echo "Sem URL configurada."
 

@@ -1,4 +1,4 @@
-# Estudo: CI/CD com GitHub Actions e AWS Lambda (Python)
+# CI/CD com GitHub Actions e AWS Lambda (Python)
 
 Este repositório foi usado como **estudo prático** para praticar a integração de **GitHub Actions** com **AWS Lambda**, criando um fluxo de CI/CD simples em Python e testando a exposição da função via **Function URL**.
 

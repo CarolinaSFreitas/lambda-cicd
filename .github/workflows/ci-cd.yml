@@ -23,7 +23,7 @@ jobs:
       - name: Python setup
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13'   # manter alinhado com o runtime da Lambda
 
       - name: Lint básico
         run: python -m py_compile handler.py
@@ -47,7 +47,7 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # OIDC
+      id-token: write   #OIDC
       contents: read
     steps:
       - uses: actions/checkout@v4
@@ -67,13 +67,26 @@ jobs:
       - name: Who am I? (sanity check)
         run: aws sts get-caller-identity
 
+      # Garante runtime/handler corretos e injeta GIT_SHA/BUILT_AT na config da Lambda
+      - name: Ensure Lambda config (runtime, handler, env)
+        run: |
+          GIT_SHA=${GITHUB_SHA::7}
+          BUILT_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          aws lambda update-function-configuration \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --runtime python3.13 \
+            --handler handler.handler \
+            --environment "Variables={GIT_SHA=$GIT_SHA,BUILT_AT=$BUILT_AT}"
+
+      - name: Wait config applied
+        run: aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION_NAME"
+
       - name: Deploy zip -> ${{ env.LAMBDA_FUNCTION_NAME }}
         run: |
           aws lambda update-function-code \
             --function-name "$LAMBDA_FUNCTION_NAME" \
             --zip-file fileb://build.zip \
-            --publish >/tmp/update.json \
-            --handler handler.handler 
+            --publish >/tmp/update.json
 
           VERSION=$(jq -r '.Version' /tmp/update.json)
 
@@ -87,11 +100,10 @@ jobs:
             aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$LAMBDA_ALIAS" --function-version "$VERSION"
           fi
 
-
-      - name: Wait Lambda updated (waiter nativo)
+      - name: Wait code/alias applied
         run: aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION_NAME"
 
-      - name: URL da Lambda
+      - name: URL da Lambda (opcional)
         run: |
           aws lambda get-function-url-config --function-name "$LAMBDA_FUNCTION_NAME" || echo "Sem URL configurada."
 
@@ -104,5 +116,3 @@ jobs:
             response.json
           echo "Lambda response:"
           cat response.json | jq .
-            echo ""
-
